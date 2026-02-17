@@ -2,7 +2,8 @@ from flask import Flask, render_template, request, jsonify
 import ezdxf
 import tempfile
 import os
-import math
+
+from ezdxf.entities.hatch import PolylinePath, EdgePath
 
 app = Flask(__name__)
 
@@ -10,97 +11,101 @@ app = Flask(__name__)
 def index():
     return render_template("index.html")
 
+
 @app.route("/upload", methods=["POST"])
 def upload():
-    file = request.files.get("file")
-    if not file:
-        return jsonify({"error": "No file"}), 400
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
 
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "Empty filename"}), 400
+
+    # 一時ファイルに保存
     with tempfile.NamedTemporaryFile(delete=False, suffix=".dxf") as tmp:
         file.save(tmp.name)
-        path = tmp.name
+        tmp_path = tmp.name
 
-    doc = ezdxf.readfile(path)
-    msp = doc.modelspace()
+    try:
+        doc = ezdxf.readfile(tmp_path)
+        msp = doc.modelspace()
 
-    data = {
-        "lines": [],
-        "circles": [],
-        "arcs": [],
-        "texts": [],
-        "hatches": [],
-        "bbox": {
-            "minx": math.inf,
-            "miny": math.inf,
-            "maxx": -math.inf,
-            "maxy": -math.inf
-        }
-    }
+        entities = []
 
-    def update_bbox(x, y):
-        data["bbox"]["minx"] = min(data["bbox"]["minx"], x)
-        data["bbox"]["miny"] = min(data["bbox"]["miny"], y)
-        data["bbox"]["maxx"] = max(data["bbox"]["maxx"], x)
-        data["bbox"]["maxy"] = max(data["bbox"]["maxy"], y)
+        for e in msp:
+            etype = e.dxftype()
 
-    for e in msp:
-        t = e.dxftype()
+            # LINE
+            if etype == "LINE":
+                entities.append({
+                    "type": "LINE",
+                    "start": [e.dxf.start.x, e.dxf.start.y],
+                    "end": [e.dxf.end.x, e.dxf.end.y],
+                })
 
-        if t == "LINE":
-            x1, y1 = e.dxf.start.x, -e.dxf.start.y
-            x2, y2 = e.dxf.end.x, -e.dxf.end.y
-            data["lines"].append({"x1": x1, "y1": y1, "x2": x2, "y2": y2})
-            update_bbox(x1, y1)
-            update_bbox(x2, y2)
+            # CIRCLE
+            elif etype == "CIRCLE":
+                entities.append({
+                    "type": "CIRCLE",
+                    "center": [e.dxf.center.x, e.dxf.center.y],
+                    "radius": e.dxf.radius,
+                })
 
-        elif t == "LWPOLYLINE":
-            pts = []
-            for p in e.get_points():
-                x, y = p[0], -p[1]
-                pts.append([x, y])
-                update_bbox(x, y)
-            data["lines"].append({"poly": pts})
+            # LWPOLYLINE
+            elif etype == "LWPOLYLINE":
+                points = [[p[0], p[1]] for p in e.get_points()]
+                if len(points) >= 2:
+                    entities.append({
+                        "type": "POLYLINE",
+                        "points": points,
+                        "closed": e.closed,
+                    })
 
-        elif t == "CIRCLE":
-            cx, cy, r = e.dxf.center.x, -e.dxf.center.y, e.dxf.radius
-            data["circles"].append({"cx": cx, "cy": cy, "r": r})
-            update_bbox(cx - r, cy - r)
-            update_bbox(cx + r, cy + r)
+            # TEXT
+            elif etype == "TEXT":
+                entities.append({
+                    "type": "TEXT",
+                    "text": e.dxf.text,
+                    "position": [e.dxf.insert.x, e.dxf.insert.y],
+                    "height": e.dxf.height,
+                })
 
-        elif t == "ARC":
-            cx, cy, r = e.dxf.center.x, -e.dxf.center.y, e.dxf.radius
-            data["arcs"].append({
-                "cx": cx,
-                "cy": cy,
-                "r": r,
-                "start": e.dxf.start_angle,
-                "end": e.dxf.end_angle
-            })
-            update_bbox(cx - r, cy - r)
-            update_bbox(cx + r, cy + r)
+            # MTEXT（簡易）
+            elif etype == "MTEXT":
+                entities.append({
+                    "type": "TEXT",
+                    "text": e.text,
+                    "position": [e.dxf.insert.x, e.dxf.insert.y],
+                    "height": e.dxf.char_height if e.dxf.char_height else 10,
+                })
 
-        elif t in ("TEXT", "MTEXT"):
-            try:
-                text = e.plain_text()
-            except Exception:
-                text = "<?>"
-            x, y = e.dxf.insert.x, -e.dxf.insert.y
-            data["texts"].append({"x": x, "y": y, "text": text})
-            update_bbox(x, y)
+            # HATCH（簡易：PolylinePathのみ）
+            elif etype == "HATCH":
+                for path in e.paths:
+                    if isinstance(path, PolylinePath):
+                        points = [[v[0], v[1]] for v in path.vertices]
+                        if len(points) >= 2:
+                            entities.append({
+                                "type": "POLYLINE",
+                                "points": points,
+                                "closed": True,
+                            })
+                    elif isinstance(path, EdgePath):
+                        # EdgePath は今回は簡易対応のため無視
+                        continue
 
-        elif t == "HATCH":
-            for path in e.paths:
-                if path.PATH_TYPE == "PolylinePath":
-                    pts = []
-                    for v in path.vertices:
-                        x, y = v[0], -v[1]
-                        pts.append([x, y])
-                        update_bbox(x, y)
-                    if len(pts) >= 3:
-                        data["hatches"].append({"boundary": pts})
+        return jsonify({
+            "entities": entities
+        })
 
-    os.remove(path)
-    return jsonify(data)
+    except Exception as ex:
+        return jsonify({
+            "error": str(ex)
+        }), 500
+
+    finally:
+        os.remove(tmp_path)
+
 
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)
