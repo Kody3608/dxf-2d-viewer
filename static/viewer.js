@@ -8,7 +8,7 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
     console.log("Selected file:", file);
 
     const formData = new FormData();
-    formData.append("file", file); // そのまま追加するだけでOK
+    formData.append("file", file); // そのままバイナリで送信
 
     try {
         const res = await fetch("/upload", {
