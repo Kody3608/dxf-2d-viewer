@@ -15,7 +15,10 @@ document.getElementById("fileInput").addEventListener("change", (e) => {
         for (let i = 0; i < bytes.byteLength; i++) {
             binary += String.fromCharCode(bytes[i]);
         }
-        const base64 = btoa(binary);
+        let base64 = btoa(binary);
+
+        // URLエンコードして安全に送信
+        base64 = encodeURIComponent(base64);
 
         const formData = new FormData();
         formData.append("file", base64);

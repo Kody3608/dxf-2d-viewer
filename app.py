@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify
 import ezdxf
 from io import BytesIO
 import base64
+import urllib.parse
 import os
 
 app = Flask(__name__)
@@ -18,6 +19,10 @@ def upload():
         if not file_b64:
             return jsonify({"error": "No file received"}), 400
 
+        # URLデコード（encodeURIComponent 対応）
+        file_b64 = urllib.parse.unquote(file_b64)
+
+        # Base64 → bytes
         data = base64.b64decode(file_b64)
         stream = BytesIO(data)
 
