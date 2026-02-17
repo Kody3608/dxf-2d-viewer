@@ -14,16 +14,13 @@ def index():
 @app.route("/upload", methods=["POST"])
 def upload():
     try:
-        # JSからBase64文字列として送信
         file_b64 = request.form.get("file")
         if not file_b64:
             return jsonify({"error": "No file received"}), 400
 
-        # Base64 → bytes
         data = base64.b64decode(file_b64)
-
-        # ezdxfに渡す
         stream = BytesIO(data)
+
         doc = ezdxf.read(stream)
         msp = doc.modelspace()
 
