@@ -26,7 +26,7 @@ def upload_svg():
 
     try:
         # -------------------------------
-        # 変換パスを取得しフルURLにする
+        # Vector Express 変換パスを取得しフルURLにする
         # -------------------------------
         paths_resp = requests.get(f"{VECTOR_EXPRESS_BASE}/convert/dxf/auto/svg/")
         paths_resp.raise_for_status()
