@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 import ezdxf
+from io import BytesIO
 
 app = Flask(__name__)
 
@@ -12,8 +13,11 @@ def upload():
     try:
         file = request.files["file"]
 
-        # ★ここが重要
-        doc = ezdxf.read(file.stream)
+        # bytes として読む（重要）
+        data = file.read()
+        stream = BytesIO(data)
+
+        doc = ezdxf.read(stream)
         msp = doc.modelspace()
 
         lines = []
@@ -31,6 +35,7 @@ def upload():
     except Exception as e:
         print("DXF ERROR:", e)
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
