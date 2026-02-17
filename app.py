@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import ezdxf
 from io import BytesIO
+import base64
 import os
 
 app = Flask(__name__)
@@ -12,43 +13,38 @@ def index():
 @app.route("/upload", methods=["POST"])
 def upload():
     try:
-        file = request.files.get("file")
-        if not file:
+        # JS から Base64 文字列として送られてくる
+        file_b64 = request.form.get("file")
+        if not file_b64:
             return jsonify({"error": "No file received"}), 400
 
-        data = file.read()
+        # Base64 → bytes
+        data = base64.b64decode(file_b64)
 
-        # -------------------------------
-        # ASCII かバイナリか自動判定
-        # -------------------------------
-        if data.startswith(b'0\nSECTION\n'):  # ASCII DXFの典型的な先頭
-            try:
-                # UTF-8で読み込めるか試す
-                text = data.decode('utf-8')
-            except UnicodeDecodeError:
-                # UTF-8で失敗したら latin-1 でデコードして再エンコード
-                text = data.decode('latin-1')
-            data_bytes = text.encode('utf-8')
-            stream = BytesIO(data_bytes)
-        else:
-            # バイナリDXFはそのまま
-            stream = BytesIO(data)
-
-        # ezdxf で読み込み
+        # ezdxf にバイト列を渡す
+        stream = BytesIO(data)
         doc = ezdxf.read(stream)
         msp = doc.modelspace()
 
         lines = []
+        # DXF の最小・最大座標を取得してスケーリング用に記録
+        min_x = min_y = float('inf')
+        max_x = max_y = float('-inf')
+
         for e in msp:
             if e.dxftype() == "LINE":
-                lines.append({
-                    "x1": e.dxf.start.x,
-                    "y1": e.dxf.start.y,
-                    "x2": e.dxf.end.x,
-                    "y2": e.dxf.end.y,
-                })
+                x1, y1 = e.dxf.start.x, e.dxf.start.y
+                x2, y2 = e.dxf.end.x, e.dxf.end.y
+                lines.append({"x1": x1, "y1": y1, "x2": x2, "y2": y2})
+                min_x = min(min_x, x1, x2)
+                min_y = min(min_y, y1, y2)
+                max_x = max(max_x, x1, x2)
+                max_y = max(max_y, y1, y2)
 
-        return jsonify(lines)
+        return jsonify({
+            "lines": lines,
+            "bbox": {"min_x": min_x, "min_y": min_y, "max_x": max_x, "max_y": max_y}
+        })
 
     except Exception as e:
         print("DXF ERROR:", e)
