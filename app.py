@@ -12,17 +12,24 @@ def index():
 @app.route("/upload", methods=["POST"])
 def upload():
     try:
-        # ファイルを直接取得
         file = request.files.get("file")
         if not file:
             return jsonify({"error": "No file received"}), 400
 
-        # バイナリで読み込み
         data = file.read()
-        stream = BytesIO(data)
 
-        # ezdxf で読み込み（DXF は UTF-8/Unicode 保存済みなので安全）
-        doc = ezdxf.read(stream)
+        # バイト列を BytesIO に渡す前に文字コードを自動判定
+        try:
+            # まず UTF-8 として読み込む
+            stream = BytesIO(data)
+            doc = ezdxf.read(stream)
+        except UnicodeDecodeError:
+            # UTF-8 で失敗した場合、latin-1 としてデコードして再度バイト列に変換
+            text = data.decode("latin-1")
+            data_bytes = text.encode("utf-8")
+            stream = BytesIO(data_bytes)
+            doc = ezdxf.read(stream)
+
         msp = doc.modelspace()
 
         lines = []
@@ -42,5 +49,5 @@ def upload():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # Render 環境に対応
+    port = int(os.environ.get("PORT", 10000))  # Render の PORT 環境変数対応
     app.run(host="0.0.0.0", port=port, debug=True)
