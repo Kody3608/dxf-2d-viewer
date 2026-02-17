@@ -3,9 +3,8 @@ import ezdxf
 import tempfile
 import os
 
-from ezdxf.entities.hatch import PolylinePath, EdgePath
-
 app = Flask(__name__)
+
 
 @app.route("/")
 def index():
@@ -76,13 +75,15 @@ def upload():
                     "type": "TEXT",
                     "text": e.text,
                     "position": [e.dxf.insert.x, e.dxf.insert.y],
-                    "height": e.dxf.char_height if e.dxf.char_height else 10,
+                    "height": e.dxf.char_height or 10,
                 })
 
-            # HATCH（簡易：PolylinePathのみ）
+            # HATCH（簡易表示：PolylinePathのみ）
             elif etype == "HATCH":
                 for path in e.paths:
-                    if isinstance(path, PolylinePath):
+                    path_type = path.__class__.__name__
+
+                    if path_type == "PolylinePath":
                         points = [[v[0], v[1]] for v in path.vertices]
                         if len(points) >= 2:
                             entities.append({
@@ -90,18 +91,14 @@ def upload():
                                 "points": points,
                                 "closed": True,
                             })
-                    elif isinstance(path, EdgePath):
-                        # EdgePath は今回は簡易対応のため無視
+                    # EdgePath は簡易表示方針のため無視
+                    elif path_type == "EdgePath":
                         continue
 
-        return jsonify({
-            "entities": entities
-        })
+        return jsonify({"entities": entities})
 
     except Exception as ex:
-        return jsonify({
-            "error": str(ex)
-        }), 500
+        return jsonify({"error": str(ex)}), 500
 
     finally:
         os.remove(tmp_path)
