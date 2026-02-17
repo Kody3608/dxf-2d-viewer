@@ -5,30 +5,45 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    console.log("Selected file:", file); // 確認用
+    console.log("Selected file:", file);
 
     const formData = new FormData();
-    formData.append("file", file);
 
-    try {
-        const res = await fetch("/upload", {
-            method: "POST",
-            body: formData
-        });
-
-        const data = await res.json();
-        console.log("DXF data:", data);
-
-        if (!Array.isArray(data)) {
-            alert("DXF読み込みエラー:\n" + data.error);
-            return;
+    // 日本語ファイル名でも安全に送るために Base64 でエンコード
+    const reader = new FileReader();
+    reader.onload = async () => {
+        const arrayBuffer = reader.result;
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = '';
+        for (let b of bytes) {
+            binary += String.fromCharCode(b);
         }
+        const base64 = btoa(binary);
 
-        draw(data);
-    } catch (err) {
-        console.error("Upload error:", err);
-        alert("ファイルアップロードに失敗しました");
-    }
+        formData.append("file", base64);
+
+        try {
+            const res = await fetch("/upload", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await res.json();
+            console.log("DXF data:", data);
+
+            if (!Array.isArray(data)) {
+                alert("DXF読み込みエラー:\n" + data.error);
+                return;
+            }
+
+            draw(data);
+        } catch (err) {
+            console.error("Upload error:", err);
+            alert("ファイルアップロードに失敗しました");
+        }
+    };
+
+    reader.readAsArrayBuffer(file);
 });
 
 function draw(lines) {

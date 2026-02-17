@@ -12,13 +12,21 @@ def index():
 @app.route("/upload", methods=["POST"])
 def upload():
     try:
+        # まず request.files をチェック
         file = request.files.get("file")
-        if not file:
-            return jsonify({"error": "No file received"}), 400
+        if file:
+            # 通常の FileStorage ならそのまま読み込む
+            data = file.read()
+        else:
+            # 日本語ファイル名などで文字列として送られた場合
+            # request.form に Base64 文字列として送る方法に対応
+            data_b64 = request.form.get("file")
+            if not data_b64:
+                return jsonify({"error": "No file received"}), 400
+            import base64
+            data = base64.b64decode(data_b64)
 
-        data = file.read()
         stream = BytesIO(data)
-
         doc = ezdxf.read(stream)
         msp = doc.modelspace()
 
@@ -39,5 +47,5 @@ def upload():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # RenderのPORT環境変数を使う
+    port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, debug=True)
