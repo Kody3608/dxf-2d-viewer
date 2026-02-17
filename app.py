@@ -18,18 +18,24 @@ def upload():
 
         data = file.read()
 
-        # バイト列を BytesIO に渡す前に文字コードを自動判定
-        try:
-            # まず UTF-8 として読み込む
-            stream = BytesIO(data)
-            doc = ezdxf.read(stream)
-        except UnicodeDecodeError:
-            # UTF-8 で失敗した場合、latin-1 としてデコードして再度バイト列に変換
-            text = data.decode("latin-1")
-            data_bytes = text.encode("utf-8")
+        # -------------------------------
+        # ASCII かバイナリか自動判定
+        # -------------------------------
+        if data.startswith(b'0\nSECTION\n'):  # ASCII DXFの典型的な先頭
+            try:
+                # UTF-8で読み込めるか試す
+                text = data.decode('utf-8')
+            except UnicodeDecodeError:
+                # UTF-8で失敗したら latin-1 でデコードして再エンコード
+                text = data.decode('latin-1')
+            data_bytes = text.encode('utf-8')
             stream = BytesIO(data_bytes)
-            doc = ezdxf.read(stream)
+        else:
+            # バイナリDXFはそのまま
+            stream = BytesIO(data)
 
+        # ezdxf で読み込み
+        doc = ezdxf.read(stream)
         msp = doc.modelspace()
 
         lines = []
@@ -48,6 +54,7 @@ def upload():
         print("DXF ERROR:", e)
         return jsonify({"error": str(e)}), 500
 
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # Render の PORT 環境変数対応
+    port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, debug=True)
