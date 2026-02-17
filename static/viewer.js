@@ -1,44 +1,37 @@
-window.addEventListener("DOMContentLoaded", () => {
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
 
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
+document.getElementById("fileInput").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-    const fileInput = document.getElementById("fileInput");
+    const formData = new FormData();
+    formData.append("file", file);
 
-    fileInput.addEventListener("change", async () => {
-        const file = fileInput.files[0];
-        if (!file) return;
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const res = await fetch("/upload", {
-            method: "POST",
-            body: formData
-        });
-
-        const lines = await res.json();
-        console.log("DXF data:", lines);
-
-        draw(lines);
+    const res = await fetch("/upload", {
+        method: "POST",
+        body: formData
     });
 
-    function draw(lines) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const data = await res.json();
+    console.log("DXF data:", data);
 
-        ctx.save();
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.scale(1, -1); // DXF座標系対策
-
-        ctx.beginPath();
-        lines.forEach(l => {
-            ctx.moveTo(l.x1, l.y1);
-            ctx.lineTo(l.x2, l.y2);
-        });
-        ctx.strokeStyle = "black";
-        ctx.stroke();
-
-        ctx.restore();
+    if (!Array.isArray(data)) {
+        alert("DXF読み込みエラー:\n" + data.error);
+        return;
     }
 
+    draw(data);
 });
+
+function draw(lines) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "black";
+
+    lines.forEach(l => {
+        ctx.beginPath();
+        ctx.moveTo(l.x1, canvas.height - l.y1);
+        ctx.lineTo(l.x2, canvas.height - l.y2);
+        ctx.stroke();
+    });
+}
