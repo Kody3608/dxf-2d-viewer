@@ -1,18 +1,33 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-function drawDXF(data) {
+// キャンバス初期化
+canvas.width = 800;
+canvas.height = 600;
+
+// DXF描画
+function drawDXF(entities) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // 1️⃣ 全点を集める
-  const points = [];
-  data.forEach(ent => {
-    ent.points.forEach(p => points.push(p));
+  if (!entities || entities.length === 0) {
+    console.warn("No entities to draw");
+    return;
+  }
+
+  // 全点収集
+  let points = [];
+  entities.forEach(e => {
+    if (e.points) {
+      e.points.forEach(p => points.push(p));
+    }
   });
 
-  if (points.length === 0) return;
+  if (points.length === 0) {
+    console.warn("No points found");
+    return;
+  }
 
-  // 2️⃣ bounding box
+  // bounding box
   const xs = points.map(p => p[0]);
   const ys = points.map(p => p[1]);
 
@@ -21,27 +36,28 @@ function drawDXF(data) {
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
 
-  const dxfWidth = maxX - minX;
-  const dxfHeight = maxY - minY;
+  const w = maxX - minX;
+  const h = maxY - minY;
 
-  // 3️⃣ scale
   const scale = Math.min(
-    canvas.width / dxfWidth,
-    canvas.height / dxfHeight
+    canvas.width / w,
+    canvas.height / h
   ) * 0.9;
 
-  const offsetX = (canvas.width - dxfWidth * scale) / 2;
-  const offsetY = (canvas.height - dxfHeight * scale) / 2;
+  const offsetX = (canvas.width - w * scale) / 2;
+  const offsetY = (canvas.height - h * scale) / 2;
 
-  // 4️⃣ 描画
   ctx.strokeStyle = "#000";
   ctx.lineWidth = 1;
 
-  data.forEach(ent => {
+  // 描画
+  entities.forEach(e => {
+    if (!e.points || e.points.length < 2) return;
+
     ctx.beginPath();
-    ent.points.forEach((p, i) => {
+    e.points.forEach((p, i) => {
       const x = (p[0] - minX) * scale + offsetX;
-      const y = canvas.height - ((p[1] - minY) * scale + offsetY); // Y反転
+      const y = canvas.height - ((p[1] - minY) * scale + offsetY);
 
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
@@ -49,3 +65,22 @@ function drawDXF(data) {
     ctx.stroke();
   });
 }
+
+// アップロード処理
+document.getElementById("fileInput").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch("/upload", {
+    method: "POST",
+    body: formData
+  });
+
+  const data = await res.json();
+  console.log("DXF data:", data); // ← 必ず確認
+
+  drawDXF(data);
+});
