@@ -5,23 +5,30 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    console.log("Selected file:", file); // 確認用
+
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("/upload", {
-        method: "POST",
-        body: formData
-    });
+    try {
+        const res = await fetch("/upload", {
+            method: "POST",
+            body: formData
+        });
 
-    const data = await res.json();
-    console.log("DXF data:", data);
+        const data = await res.json();
+        console.log("DXF data:", data);
 
-    if (!Array.isArray(data)) {
-        alert("DXF読み込みエラー:\n" + data.error);
-        return;
+        if (!Array.isArray(data)) {
+            alert("DXF読み込みエラー:\n" + data.error);
+            return;
+        }
+
+        draw(data);
+    } catch (err) {
+        console.error("Upload error:", err);
+        alert("ファイルアップロードに失敗しました");
     }
-
-    draw(data);
 });
 
 function draw(lines) {

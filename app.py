@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import ezdxf
 from io import BytesIO
+import os
 
 app = Flask(__name__)
 
@@ -11,9 +12,10 @@ def index():
 @app.route("/upload", methods=["POST"])
 def upload():
     try:
-        file = request.files["file"]
+        file = request.files.get("file")
+        if not file:
+            return jsonify({"error": "No file received"}), 400
 
-        # bytes として読む（重要）
         data = file.read()
         stream = BytesIO(data)
 
@@ -36,6 +38,6 @@ def upload():
         print("DXF ERROR:", e)
         return jsonify({"error": str(e)}), 500
 
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000, debug=True)
+    port = int(os.environ.get("PORT", 10000))  # RenderのPORT環境変数を使う
+    app.run(host="0.0.0.0", port=port, debug=True)

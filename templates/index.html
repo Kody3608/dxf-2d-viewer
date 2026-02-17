@@ -2,19 +2,16 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>DXF 2D Viewer</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>DXF Viewer</title>
+    <style>
+        canvas { border: 1px solid #333; }
+    </style>
 </head>
 <body>
-    <h2>DXF 2D Viewer</h2>
-
-    <input type="file" id="fileInput" accept=".dxf">
-
-    <br><br>
-
+    <h1>DXF Viewer</h1>
+    <input type="file" id="fileInput" accept=".dxf" />
     <canvas id="canvas" width="800" height="600"></canvas>
 
-    <!-- ★重要：canvas の後で読み込む -->
     <script src="/static/viewer.js"></script>
 </body>
 </html>
