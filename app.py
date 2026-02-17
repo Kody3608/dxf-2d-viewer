@@ -5,6 +5,7 @@ import base64
 import os
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MBまで許可
 
 @app.route("/")
 def index():
@@ -13,7 +14,7 @@ def index():
 @app.route("/upload", methods=["POST"])
 def upload():
     try:
-        # JS から Base64 文字列として送られてくる
+        # JSからBase64文字列として送信
         file_b64 = request.form.get("file")
         if not file_b64:
             return jsonify({"error": "No file received"}), 400
@@ -21,13 +22,12 @@ def upload():
         # Base64 → bytes
         data = base64.b64decode(file_b64)
 
-        # ezdxf にバイト列を渡す
+        # ezdxfに渡す
         stream = BytesIO(data)
         doc = ezdxf.read(stream)
         msp = doc.modelspace()
 
         lines = []
-        # DXF の最小・最大座標を取得してスケーリング用に記録
         min_x = min_y = float('inf')
         max_x = max_y = float('-inf')
 
@@ -49,7 +49,6 @@ def upload():
     except Exception as e:
         print("DXF ERROR:", e)
         return jsonify({"error": str(e)}), 500
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))

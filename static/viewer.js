@@ -48,7 +48,7 @@ function draw(lines, bbox) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = "black";
 
-    const padding = 20; // canvas の端に余白
+    const padding = 20;
     const scaleX = (canvas.width - 2*padding) / (bbox.max_x - bbox.min_x || 1);
     const scaleY = (canvas.height - 2*padding) / (bbox.max_y - bbox.min_y || 1);
     const scale = Math.min(scaleX, scaleY);
