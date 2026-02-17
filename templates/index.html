@@ -1,33 +1,20 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>2D DXF Viewer</title>
-<link rel="stylesheet" href="/static/style.css">
+    <meta charset="UTF-8">
+    <title>DXF 2D Viewer</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+    <h2>DXF 2D Viewer</h2>
 
-<h1>2D DXF Viewer</h1>
+    <input type="file" id="fileInput" accept=".dxf">
 
-<div class="warning">
-<strong>⚠ 表示仕様について</strong><br><br>
+    <br><br>
 
-<b>文字表示</b><br>
-本ビューアは <b>UTF-8 / TrueTypeフォント</b> を前提としています。<br>
-以下の場合、文字化け・未表示が発生します。<br>
-・Shift-JIS / CP932<br>
-・SHXフォント使用DXF<br><br>
+    <canvas id="canvas" width="800" height="600"></canvas>
 
-<b>ハッチング</b><br>
-HATCHは <b>簡易表示</b> です。<br>
-・パターンは再現されません<br>
-・境界線＋単色塗りのみ表示されます
-</div>
-
-<input type="file" id="file" accept=".dxf">
-
-<svg id="svg" width="100%" height="600"></svg>
-
-<script src="/static/viewer.js"></script>
+    <!-- ★重要：canvas の後で読み込む -->
+    <script src="/static/viewer.js"></script>
 </body>
 </html>

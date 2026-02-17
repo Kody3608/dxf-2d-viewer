@@ -1,86 +1,44 @@
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+window.addEventListener("DOMContentLoaded", () => {
 
-// キャンバス初期化
-canvas.width = 800;
-canvas.height = 600;
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
 
-// DXF描画
-function drawDXF(entities) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const fileInput = document.getElementById("fileInput");
 
-  if (!entities || entities.length === 0) {
-    console.warn("No entities to draw");
-    return;
-  }
+    fileInput.addEventListener("change", async () => {
+        const file = fileInput.files[0];
+        if (!file) return;
 
-  // 全点収集
-  let points = [];
-  entities.forEach(e => {
-    if (e.points) {
-      e.points.forEach(p => points.push(p));
-    }
-  });
+        const formData = new FormData();
+        formData.append("file", file);
 
-  if (points.length === 0) {
-    console.warn("No points found");
-    return;
-  }
+        const res = await fetch("/upload", {
+            method: "POST",
+            body: formData
+        });
 
-  // bounding box
-  const xs = points.map(p => p[0]);
-  const ys = points.map(p => p[1]);
+        const lines = await res.json();
+        console.log("DXF data:", lines);
 
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-
-  const w = maxX - minX;
-  const h = maxY - minY;
-
-  const scale = Math.min(
-    canvas.width / w,
-    canvas.height / h
-  ) * 0.9;
-
-  const offsetX = (canvas.width - w * scale) / 2;
-  const offsetY = (canvas.height - h * scale) / 2;
-
-  ctx.strokeStyle = "#000";
-  ctx.lineWidth = 1;
-
-  // 描画
-  entities.forEach(e => {
-    if (!e.points || e.points.length < 2) return;
-
-    ctx.beginPath();
-    e.points.forEach((p, i) => {
-      const x = (p[0] - minX) * scale + offsetX;
-      const y = canvas.height - ((p[1] - minY) * scale + offsetY);
-
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+        draw(lines);
     });
-    ctx.stroke();
-  });
-}
 
-// アップロード処理
-document.getElementById("fileInput").addEventListener("change", async e => {
-  const file = e.target.files[0];
-  if (!file) return;
+    function draw(lines) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const formData = new FormData();
-  formData.append("file", file);
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.scale(1, -1); // DXF座標系対策
 
-  const res = await fetch("/upload", {
-    method: "POST",
-    body: formData
-  });
+        ctx.beginPath();
+        lines.forEach(l => {
+            ctx.moveTo(l.x1, l.y1);
+            ctx.lineTo(l.x2, l.y2);
+        });
+        ctx.strokeStyle = "black";
+        ctx.stroke();
 
-  const data = await res.json();
-  console.log("DXF data:", data); // ← 必ず確認
+        ctx.restore();
+    }
 
-  drawDXF(data);
 });
